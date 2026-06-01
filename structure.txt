@@ -1,0 +1,37 @@
+core
+> experiment.py		(main orchestrator)
+> master_config.py
+> abstract.py
+> schema.py
+		
+> architectures
+	> architecture_control.py
+	> config.py
+	> [individual architecture folders...]
+		> model.py
+		> config.py
+> datasets
+	> data_module.py
+	> dataset.py
+	> config.py
+	> [individual dataset folders...]
+		> raw_getter.py
+		> config.py
+
+> trainers
+	> trainer.py
+	> checkpoint_manager.py
+	> loss_logger.py
+	> progress_display.py
+	> config.py
+> saving
+	> mpkg.py
+	> config.py
+> metrics
+	> metrics.py
+	> classification_metrics.py
+	> regression_metrics.py
+	> config.py
+
+> modules
+	> plotter.py
