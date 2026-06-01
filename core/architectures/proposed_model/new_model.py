@@ -1,0 +1,227 @@
+from __future__ import annotations
+from dataclasses import dataclass
+
+import torch
+from torch import nn, Tensor
+from typing import Optional
+
+from core.abstract import ABSTRACT_Config
+
+from .PatchTST.backbone import PatchTST_backbone
+from .series_decomposition import series_decomp
+
+
+
+class ProposedModel(nn.Module):
+    def __init__(self, configs:ProposedModelConfig, max_seq_len:Optional[int]=1024, d_k:Optional[int]=None, d_v:Optional[int]=None, norm:str='BatchNorm', attn_dropout:float=0., 
+                 act:str="gelu", key_padding_mask:bool='auto',padding_var:Optional[int]=None, attn_mask:Optional[Tensor]=None, res_attention:bool=True, 
+                 pre_norm:bool=False, store_attn:bool=True, pe:str='zeros', learn_pe:bool=True, pretrain_head:bool=False, head_type = 'flatten', verbose:bool=False, 
+                 n_normal_heads=0, n_mp_attn_heads=0, qk_weight_share=False, **kwargs):
+        
+        super().__init__()
+        
+        self.configs = configs
+        
+        if hasattr(configs, "n_normal_heads"):
+            n_normal_heads = configs.n_normal_heads
+        else:
+            n_normal_heads = 0
+        
+        if hasattr(configs, "n_mp_attn_heads"):
+            n_mp_attn_heads = configs.n_mp_attn_heads
+        else:
+            n_mp_attn_heads = 0
+            
+        if hasattr(configs, "qk_weight_share"):
+            qk_weight_share = configs.qk_weight_share
+        else:
+            qk_weight_share = False
+        
+        c_in = configs.enc_in_feature
+        context_window = configs.seq_len
+        target_window = configs.pred_len
+        
+        n_layers = configs.e_layers_num
+        n_heads = configs.n_heads_num
+        d_model = configs.d_model
+        d_ff = configs.d_ff
+        dropout = configs.dropout
+        fc_dropout = configs.fc_dropout
+        head_dropout = configs.head_dropout
+        attn_dropout = configs.attn_dropout
+        
+        pre_norm = configs.use_pre_norm
+        attention_output_scaling = configs.attention_output_scaling
+        
+        individual = configs.individual
+    
+        patch_len = configs.patch_len
+        stride = configs.stride
+        padding_patch = configs.padding_patch
+        
+        revin = configs.use_revin
+        affine = configs.use_affine
+        subtract_last = configs.use_subtract_last
+        
+        use_positional_encoding = configs.use_positional_encoding
+        
+        decomposition = configs.decomposition
+        kernel_size = configs.kernel_size
+        
+        head_type = configs.head_type
+        bottleneck_dim = configs.bottleneck_dim
+        
+        self.res_attention = res_attention
+        
+        # model definition
+        self.decomposition = decomposition
+        if self.decomposition:
+            self.decomp_module = series_decomp(kernel_size)
+            self.model_trend = PatchTST_backbone(c_in=c_in, context_window = context_window, target_window=target_window, patch_len=patch_len, stride=stride, 
+                                  max_seq_len=max_seq_len, n_layers=n_layers, d_model=d_model,
+                                  n_heads=n_heads, d_k=d_k, d_v=d_v, d_ff=d_ff, norm=norm, attn_dropout=attn_dropout,
+                                  dropout=dropout, act=act, key_padding_mask=key_padding_mask, padding_var=padding_var, 
+                                  attn_mask=attn_mask, res_attention=res_attention, pre_norm=pre_norm, store_attn=store_attn,
+                                  pe=pe, learn_pe=learn_pe, fc_dropout=fc_dropout, head_dropout=head_dropout, padding_patch = padding_patch,
+                                  pretrain_head=pretrain_head, head_type=head_type, individual=individual, revin=revin, affine=affine,
+                                  subtract_last=subtract_last, use_positional_encoding=use_positional_encoding, 
+                                  verbose=verbose, 
+                                  n_normal_heads=n_normal_heads, n_mp_attn_heads=n_mp_attn_heads, qk_weight_share=qk_weight_share,
+                                  bottleneck_dim=bottleneck_dim, attention_output_scaling=attention_output_scaling,
+                                  **kwargs)
+            self.model_res = PatchTST_backbone(c_in=c_in, context_window = context_window, target_window=target_window, patch_len=patch_len, stride=stride, 
+                                  max_seq_len=max_seq_len, n_layers=n_layers, d_model=d_model,
+                                  n_heads=n_heads, d_k=d_k, d_v=d_v, d_ff=d_ff, norm=norm, attn_dropout=attn_dropout,
+                                  dropout=dropout, act=act, key_padding_mask=key_padding_mask, padding_var=padding_var, 
+                                  attn_mask=attn_mask, res_attention=res_attention, pre_norm=pre_norm, store_attn=store_attn,
+                                  pe=pe, learn_pe=learn_pe, fc_dropout=fc_dropout, head_dropout=head_dropout, padding_patch = padding_patch,
+                                  pretrain_head=pretrain_head, head_type=head_type, individual=individual, revin=revin, affine=affine,
+                                  subtract_last=subtract_last, use_positional_encoding=use_positional_encoding, 
+                                  verbose=verbose, 
+                                  n_normal_heads=n_normal_heads, n_mp_attn_heads=n_mp_attn_heads, qk_weight_share=qk_weight_share,
+                                  bottleneck_dim=bottleneck_dim, attention_output_scaling=attention_output_scaling,
+                                  **kwargs)
+        else:
+            self.model = PatchTST_backbone(c_in=c_in, context_window = context_window, target_window=target_window, patch_len=patch_len, stride=stride, 
+                                  max_seq_len=max_seq_len, n_layers=n_layers, d_model=d_model,
+                                  n_heads=n_heads, d_k=d_k, d_v=d_v, d_ff=d_ff, norm=norm, attn_dropout=attn_dropout,
+                                  dropout=dropout, act=act, key_padding_mask=key_padding_mask, padding_var=padding_var, 
+                                  attn_mask=attn_mask, res_attention=res_attention, pre_norm=pre_norm, store_attn=store_attn,
+                                  pe=pe, learn_pe=learn_pe, fc_dropout=fc_dropout, head_dropout=head_dropout, padding_patch = padding_patch,
+                                  pretrain_head=pretrain_head, head_type=head_type, individual=individual, revin=revin, affine=affine,
+                                  subtract_last=subtract_last, use_positional_encoding=use_positional_encoding, 
+                                  verbose=verbose, 
+                                  n_normal_heads=n_normal_heads, n_mp_attn_heads=n_mp_attn_heads, qk_weight_share=qk_weight_share,
+                                  bottleneck_dim=bottleneck_dim, attention_output_scaling=attention_output_scaling,
+                                  **kwargs)
+        
+        self.softmaxed_attn_score = []
+        self.attn_score = []
+        
+        return
+    
+    def forward(self, x:Tensor) -> Tensor: # x: [Batch, Input length, Channel]
+        self.softmaxed_attn_score.clear()
+        self.attn_score.clear()
+        
+        # print("model input shape:", x.shape) 
+        # print("model input std:", x.std().item()) 
+
+        # quick dimension addition for channel/feature
+        x = x.unsqueeze(-1)
+        
+        #print("model input after shape:", x.shape) 
+        
+        if self.decomposition:
+            res_init, trend_init = self.decomp_module(x)
+            res_init, trend_init = res_init.permute(0,2,1), trend_init.permute(0,2,1)  # x: [Batch, Channel, Input length]
+            res = self.model_res(res_init)
+            trend = self.model_trend(trend_init)
+            x = res + trend
+            x = x.permute(0,2,1)    # x: [Batch, Input length, Channel]
+        else:
+            x = x.permute(0,2,1)    # x: [Batch, Channel, Input length]
+            x = self.model(x)
+            x = x.permute(0,2,1)    # x: [Batch, Input length, Channel]
+            
+            # # manually save attention matrix
+            # self.softmaxed_attn_score = self.model.softmaxed_attn_score
+            # if self.res_attention:
+            #     self.attn_score = self.model.attn_score
+        
+        # quick dimension removal for channel/feature
+        x = x.squeeze(-1)
+        
+        # print("model output std:", x.std().item())
+        # print("model output shape:", x.shape) 
+        
+        return x
+
+
+
+@dataclass
+class ProposedModelConfig(ABSTRACT_Config):
+    seq_len: int
+    pred_len: int
+    patch_len: int
+    stride: int
+        
+    e_layers_num: int       # encoder layer num
+    enc_in_feature: int     # encoder input feature
+    d_layers_num: int       # decoder layer num
+    dec_in_feature: int     # encoder input feature
+    
+    n_heads_num: int        # attention head number
+    n_normal_heads: int     # normal attn number of head
+    n_mp_attn_heads: int    # mp attn specific number of head
+    qk_weight_share: bool   # flag to turn on q and k weight share
+    d_model: int            # embedding vector dim
+    d_ff: int               # feed forward dim
+    
+    dropout: float
+    fc_dropout: float
+    head_dropout: float
+    attn_dropout: float
+    
+    use_pre_norm: bool
+    
+    attention_output_scaling: float = 1
+    individual: int = 0
+    padding_patch: str = None
+    use_revin: bool = False
+    use_affine: bool = False
+    use_subtract_last: bool = False
+    use_positional_encoding: bool = False
+    decomposition: int = 0
+    kernel_size: int = 25
+    head_type: str = 'flatten'
+    bottleneck_dim: int = 128
+    
+    @classmethod
+    def default(self):
+        proposed_model_config = self(
+            seq_len = 500,
+            pred_len = 2,
+            patch_len = 25,
+            stride = 1,
+            
+            e_layers_num = 1,
+            enc_in_feature = 1,
+            d_layers_num = 1,
+            dec_in_feature = 1,
+            
+            n_heads_num = 1,
+            n_normal_heads = 0,
+            n_mp_attn_heads = 0,
+            qk_weight_share = False,
+            d_model = 256,
+            d_ff = 512,
+            
+            dropout = 0.5,
+            fc_dropout = 0.3,
+            head_dropout = 0.1,
+            attn_dropout = 0.1,
+            
+            use_pre_norm = False
+        )
+        return proposed_model_config
